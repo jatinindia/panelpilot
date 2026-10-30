@@ -40,6 +40,8 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .brand-mark i:nth-child(3) { height: 16px; background: #55ce9b; }
 .topbar-actions { display: flex; align-items: center; gap: 20px; }
 .privacy { color: var(--faint); font: 11px var(--mono); }
+.save-status { color: var(--muted); font: 11px var(--mono); }
+.save-status.failed { color: var(--danger); }
 .text-button { border: 0; padding: 6px 0; background: none; color: var(--muted); font-size: 13px; }
 .text-button:hover:not(:disabled) { color: var(--ink); }
 
@@ -166,6 +168,10 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .export-dialog form { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
 .export-dialog h2 { margin: 0; font-size: 20px; letter-spacing: -0.03em; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.inline-row { display: flex; gap: 6px; }
+.inline-row select, .inline-row input { flex: 1; min-width: 0; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 13px; }
+.card .field input[type='number'] { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+.size-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .export-summary { margin: 0; color: var(--muted); font-size: 12px; }
 .export-error { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--danger-soft); color: var(--danger); font-size: 12px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }

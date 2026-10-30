@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f6f8f7" />
     <title>PanelPilot</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
   </head>
   <body>
     <header class="topbar">
@@ -13,6 +16,7 @@
         <span>Panel<span class="brand-accent">Pilot</span></span>
       </div>
       <div class="topbar-actions">
+        <span class="save-status" id="saveStatus" hidden></span>
         <span class="privacy">Images never leave your browser</span>
         <button class="text-button" id="resetButton" type="button" disabled>Reset workspace</button>
       </div>
@@ -97,6 +101,31 @@
           </div>
         </div>
 
+        <div class="card">
+          <div class="section-header"><span>Trim to content</span></div>
+          <label class="field">
+            <span class="field-label">Margin around product (px)</span>
+            <input id="trimMargin" type="number" min="0" max="2000" step="1" value="0" />
+          </label>
+          <div class="button-row">
+            <button class="button button-soft" id="trimSelectedButton" type="button" disabled>Trim selected</button>
+            <button class="button button-soft" id="trimAllButton" type="button" disabled>Trim all</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-header"><span>Saved layouts</span></div>
+          <div class="inline-row">
+            <select id="templateSelect" aria-label="Saved layout"></select>
+            <button class="button button-soft" id="templateApplyButton" type="button" disabled>Apply</button>
+            <button class="icon-button" id="templateDeleteButton" type="button" title="Delete saved layout" aria-label="Delete saved layout" disabled>&#x2715;</button>
+          </div>
+          <div class="inline-row">
+            <input id="templateName" type="text" placeholder="Name this layout" maxlength="60" aria-label="Layout name" />
+            <button class="button button-soft" id="templateSaveButton" type="button" disabled>Save</button>
+          </div>
+        </div>
+
         <details class="shortcuts">
           <summary>Keyboard shortcuts</summary>
           <dl>
@@ -140,11 +169,30 @@
             <input id="exportQuality" type="range" min="40" max="100" value="92" />
           </label>
           <label class="field">
+            <span class="field-label">Output size</span>
+            <select id="exportFrame">
+              <option value="original">Crop size</option>
+              <option value="square">Square 1:1</option>
+              <option value="portrait">Portrait 4:5</option>
+              <option value="2000">2000 &times; 2000 (Amazon, Shopify)</option>
+              <option value="1080">1080 &times; 1080 (Instagram)</option>
+              <option value="1080x1350">1080 &times; 1350 (Instagram portrait)</option>
+              <option value="custom">Custom size&hellip;</option>
+            </select>
+          </label>
+          <div class="field" id="customSizeField" hidden>
+            <span class="field-label">Width &times; height (px)</span>
+            <div class="size-inputs">
+              <input id="exportWidth" type="number" min="1" max="10000" step="1" value="1600" aria-label="Width" />
+              <input id="exportHeight" type="number" min="1" max="10000" step="1" value="1600" aria-label="Height" />
+            </div>
+          </div>
+          <label class="field">
             <span class="field-label">Padding (px)</span>
             <input id="exportPadding" type="number" min="0" max="2000" step="1" value="0" />
           </label>
           <label class="field">
-            <span class="field-label">Padding color</span>
+            <span class="field-label">Background</span>
             <input id="exportPadColor" type="color" value="#ffffff" />
           </label>
         </div>

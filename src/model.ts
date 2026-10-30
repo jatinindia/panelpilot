@@ -32,5 +32,7 @@ export interface Source {
   readonly bitmap: ImageBitmap;
   /** Object URL for the sidebar thumbnail; revoked when the source is removed. */
   readonly thumbUrl: string;
+  /** Original file, kept so the workspace can be saved and restored. */
+  readonly blob: Blob;
   readonly detection: DetectionStatus;
 }

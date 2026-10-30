@@ -24,9 +24,15 @@ npm run preview    # serve the production build
    - Rename, reorder, duplicate or delete crops in the right-hand list.
    - Change **Sensitivity** or **Trim background margins**, then press **Re-detect**.
    - **Apply to all** copies the current layout to every other source, for batches made from one template.
-4. **Export**: PNG, JPEG or WEBP, with quality, optional padding and color, and a file-name template (`{source}`, `{n}`, `{label}`). Export everything, the current source, or just the selected crop. One image downloads directly. Several are bundled into a ZIP with one folder per source.
+   - **Trim to content** shrinks the selected crop (or all crops) to the product inside it, plus a margin you choose. It works best on plain backgrounds; on gradients it may cut unevenly.
+   - **Saved layouts**: name the current crop layout and apply it to any collage later (it scales to the image size).
+4. **Export**: PNG, JPEG or WEBP, with quality, padding, a background color, and a file-name template (`{source}`, `{n}`, `{label}`). **Output size** presets frame each crop for marketplaces: square 1:1, portrait 4:5, 2000×2000 (Amazon, Shopify), 1080×1080 and 1080×1350 (Instagram), or a custom size. The product is centered and scaled to fit inside the padding. Export everything, the current source, or just the selected crop. One image downloads directly. Several are bundled into a ZIP with one folder per source.
 
 Every edit can be undone (Ctrl/Cmd+Z, Shift to redo). Undo history is kept per source.
+
+**Your work is saved automatically** in this browser (IndexedDB): images, crops, settings and saved layouts survive a reload. Undo history does not. **Reset workspace** deletes the saved images too; saved layouts are kept.
+
+**Offline / install**: the production build registers a service worker, so after one visit the app loads with no network, and Chrome or Edge offer to install it as an app. The service worker only runs in production builds (`npm run build && npm run preview`), not in `npm run dev`.
 
 | Shortcut | Action |
 | --- | --- |
@@ -63,6 +69,11 @@ src/
   state.ts            app state transitions
   naming.ts, plan.ts  export file and folder naming
   export.ts           rendering crops and building the ZIP (fflate)
+  frame.ts            output-size math for export presets
+  trim.ts             content bounds for Trim to content (trimCrop.ts reads pixels)
+  snapshot.ts         saved workspace/layout format and strict parsers
+  storage.ts          IndexedDB access; autosave.ts debounces saves
+  pwa/sw.js           service worker template (vite.config.ts fills in the file list)
   load.ts, sample.ts  image decoding, built-in sample
   ui/                 DOM: editor canvas, lists, export dialog
   main.ts             wiring
@@ -74,5 +85,5 @@ tests/                Vitest suites for all pure modules
 - **Gutters that match the panel background are ambiguous.** For example, a product on white with white gutters can look like one blank area. Detection may then cut inside the white background. Adjust the crop by hand.
 - **Edges may be off by 1-2px on large images**, because detection runs on the scaled-down copy. Use arrow-key nudging if it matters.
 - **WEBP export depends on the browser.** Safari cannot encode WEBP; the app reports this instead of silently writing PNG.
-- **Work is not saved across reloads.** The page warns before you leave with sources loaded.
+- **Saved work lives in one browser profile.** Clearing site data or using a private window loses it. If saving fails, the top bar shows "Not saved" and the page warns before you leave.
 - **No pinch zoom on touch screens.** Use the zoom buttons there.

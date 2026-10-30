@@ -21,6 +21,7 @@ function source(id: string): Source {
     size: { width: 100, height: 100 },
     bitmap: {} as ImageBitmap,
     thumbUrl: `blob:${id}`,
+    blob: new Blob(),
     detection: { kind: 'pending' },
   };
 }

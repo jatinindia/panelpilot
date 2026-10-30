@@ -1,4 +1,5 @@
 import { buildExport, downloadBlob, extensionFor, type ExportFormat, type ExportSettings } from '../export';
+import type { Frame } from '../frame';
 import type { Source } from '../model';
 import { applyTemplate } from '../naming';
 import { archiveName, planFiles, type ExportGroup } from '../plan';
@@ -14,6 +15,10 @@ export function setupExportDialog(getState: () => AppState): { readonly open: ()
   const qualityField = byId('qualityField', HTMLLabelElement);
   const qualityValue = byId('qualityValue', HTMLOutputElement);
   const padding = byId('exportPadding', HTMLInputElement);
+  const frameSelect = byId('exportFrame', HTMLSelectElement);
+  const customSizeField = byId('customSizeField', HTMLDivElement);
+  const customWidth = byId('exportWidth', HTMLInputElement);
+  const customHeight = byId('exportHeight', HTMLInputElement);
   const padColor = byId('exportPadColor', HTMLInputElement);
   const template = byId('exportTemplate', HTMLInputElement);
   const preview = byId('templatePreview', HTMLElement);
@@ -35,7 +40,31 @@ export function setupExportDialog(getState: () => AppState): { readonly open: ()
     const value = format.value;
     const chosen: ExportFormat = value === 'jpeg' || value === 'webp' ? value : 'png';
     const pad = Number(padding.value);
-    return { format: chosen, quality: Number(quality.value) / 100, padding: Number.isFinite(pad) ? Math.max(0, pad) : 0, padColor: padColor.value };
+    return { format: chosen, quality: Number(quality.value) / 100, padding: Number.isFinite(pad) ? Math.max(0, pad) : 0, padColor: padColor.value, frame: frame() };
+  }
+
+  function frame(): Frame {
+    switch (frameSelect.value) {
+      case 'square':
+        return { kind: 'aspect', w: 1, h: 1 };
+      case 'portrait':
+        return { kind: 'aspect', w: 4, h: 5 };
+      case '2000':
+        return { kind: 'fixed', width: 2000, height: 2000 };
+      case '1080':
+        return { kind: 'fixed', width: 1080, height: 1080 };
+      case '1080x1350':
+        return { kind: 'fixed', width: 1080, height: 1350 };
+      case 'custom':
+        return { kind: 'fixed', width: pixels(customWidth), height: pixels(customHeight) };
+      default:
+        return { kind: 'original' };
+    }
+  }
+
+  function pixels(input: HTMLInputElement): number {
+    const value = Math.round(Number(input.value));
+    return Number.isFinite(value) ? Math.min(10000, Math.max(1, value)) : 1;
   }
 
   function groups(state: AppState): ExportGroup<Source>[] {
@@ -63,6 +92,7 @@ export function setupExportDialog(getState: () => AppState): { readonly open: ()
     const state = getState();
     const s = settings();
     qualityField.hidden = s.format === 'png';
+    customSizeField.hidden = frameSelect.value !== 'custom';
     qualityValue.value = quality.value;
     const all = state.sources.reduce((n, src) => n + cropsOf(state, src.id).length, 0);
     const active = activeSource(state);

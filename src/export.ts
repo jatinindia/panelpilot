@@ -1,4 +1,5 @@
 import { zip, type AsyncZippable } from 'fflate';
+import { frameLayout, type Frame } from './frame';
 import { toPixelRect } from './geometry';
 import type { Crop, Source } from './model';
 import type { PlannedFile } from './plan';
@@ -10,7 +11,9 @@ export interface ExportSettings {
   /** 0..1, ignored for PNG. */
   readonly quality: number;
   readonly padding: number;
+  /** Fills padding and any space the frame adds around the crop. */
   readonly padColor: string;
+  readonly frame: Frame;
 }
 
 export interface ExportResult {
@@ -28,17 +31,20 @@ export function extensionFor(format: ExportFormat): string {
 export async function renderCrop(source: Source, crop: Crop, settings: ExportSettings): Promise<Blob> {
   const r = toPixelRect(crop.rect, source.size.width, source.size.height);
   const pad = Math.max(0, Math.round(settings.padding));
+  const layout = frameLayout({ width: r.w, height: r.h }, settings.frame, pad);
   const canvas = document.createElement('canvas');
-  canvas.width = r.w + pad * 2;
-  canvas.height = r.h + pad * 2;
+  canvas.width = layout.canvas.width;
+  canvas.height = layout.canvas.height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error(`Could not create a ${canvas.width}x${canvas.height} canvas for "${source.name}"`);
   // JPEG has no alpha: transparent pixels would turn black, so always fill.
-  if (pad > 0 || settings.format === 'jpeg') {
+  const addsSpace = layout.canvas.width !== r.w || layout.canvas.height !== r.h;
+  if (addsSpace || settings.format === 'jpeg') {
     ctx.fillStyle = settings.padColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
-  ctx.drawImage(source.bitmap, r.x, r.y, r.w, r.h, pad, pad, r.w, r.h);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(source.bitmap, r.x, r.y, r.w, r.h, layout.dest.x, layout.dest.y, layout.dest.w, layout.dest.h);
 
   const mime = MIME[settings.format];
   const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, mime, settings.quality));

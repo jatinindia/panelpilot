@@ -1,4 +1,5 @@
 import './styles.css';
+import { createAutosave, type SaveStatus } from './autosave';
 import { cropsFromPanels, duplicateCrop, moveCropInList, removeCrop, renameCrop, updateCropRect } from './crops';
 import { detectInWorker } from './detect/client';
 import { moveRect } from './geometry';
@@ -6,6 +7,9 @@ import { canRedo, canUndo } from './history';
 import { analysisPixels, bitmapSize, decodeImage } from './load';
 import type { Crop, DetectionStatus, Source } from './model';
 import { sampleCollage } from './sample';
+import { parseSnapshot, restoreState, type RestoredImage } from './snapshot';
+import { clearWorkspace, deleteImage, loadImage, loadWorkspace, saveImage } from './storage';
+import { trimmedRect } from './trimCrop';
 import {
   activeCrops,
   activeSource,
@@ -27,6 +31,7 @@ import { byId, errorMessage, isTyping, toast } from './ui/dom';
 import { createEditor } from './ui/editor';
 import { setupExportDialog } from './ui/exportDialog';
 import { renderCropList, renderSourceList, statusBadge } from './ui/panels';
+import { setupTemplates } from './ui/templates';
 
 const ui = {
   fileInput: byId('fileInput', HTMLInputElement),
@@ -60,10 +65,25 @@ const ui = {
   trimMargins: byId('trimMargins', HTMLInputElement),
   redetectButton: byId('redetectButton', HTMLButtonElement),
   applyAllButton: byId('applyAllButton', HTMLButtonElement),
+  trimMargin: byId('trimMargin', HTMLInputElement),
+  trimSelectedButton: byId('trimSelectedButton', HTMLButtonElement),
+  trimAllButton: byId('trimAllButton', HTMLButtonElement),
+  saveStatus: byId('saveStatus', HTMLSpanElement),
 };
+
+/** Max channel difference from the crop's border color that still counts as background when trimming. */
+const TRIM_TOLERANCE = 24;
 
 let state: AppState = initialState({ sensitivity: Number(ui.sensitivity.value) / 100, trimMargins: ui.trimMargins.checked });
 const newId = (): string => crypto.randomUUID();
+
+const autosave = createAutosave(400, renderSaveStatus);
+
+const templates = setupTemplates({
+  currentCrops: () => (state.activeId === null ? null : activeCrops(state)),
+  apply: crops => update(s => (s.activeId === null ? s : selectCrop(commitCrops(s, s.activeId, crops), null))),
+  newId,
+});
 
 function update(fn: (s: AppState) => AppState): void {
   const next = fn(state);
@@ -71,6 +91,9 @@ function update(fn: (s: AppState) => AppState): void {
   const previous = state;
   state = next;
   render(previous);
+  if (previous.sources !== next.sources || previous.crops !== next.crops || previous.activeId !== next.activeId || previous.settings !== next.settings) {
+    autosave.schedule(next);
+  }
 }
 
 const editor = createEditor(ui.canvas, {
@@ -132,10 +155,28 @@ function render(previous: AppState | null): void {
   ui.addCropButton.disabled = !ready;
   ui.redetectButton.disabled = !ready;
   ui.applyAllButton.disabled = !ready || state.sources.length < 2 || crops.length === 0;
+  ui.trimSelectedButton.disabled = !ready || state.selectedId === null;
+  ui.trimAllButton.disabled = !ready || crops.length === 0;
   ui.sensitivityValue.value = String(Math.round(state.settings.sensitivity * 100));
+  ui.sensitivity.value = ui.sensitivityValue.value;
+  ui.trimMargins.checked = state.settings.trimMargins;
+  templates.refresh();
   if (previous?.activeId !== state.activeId) ui.zoomLabel.textContent = formatScale(editor.scale());
 
   editor.render();
+}
+
+function renderSaveStatus(status: SaveStatus): void {
+  ui.saveStatus.hidden = status.kind === 'idle';
+  ui.saveStatus.className = status.kind === 'failed' ? 'save-status failed' : 'save-status';
+  ui.saveStatus.textContent = status.kind === 'pending' ? 'Saving…' : status.kind === 'saved' ? 'Saved in this browser' : 'Not saved';
+  ui.saveStatus.title = status.kind === 'failed' ? status.message : '';
+}
+
+function reportStorageError(error: unknown): void {
+  const message = errorMessage(error);
+  renderSaveStatus({ kind: 'failed', message });
+  toast(`${message}. Your work is not being saved.`, 'error');
 }
 
 function formatScale(scale: number | null): string {
@@ -183,6 +224,32 @@ function nudgeSelected(dxPx: number, dyPx: number): void {
 function addCentredCrop(): void {
   const crop: Crop = { id: newId(), rect: { x: 0.3, y: 0.3, w: 0.4, h: 0.4 }, label: null };
   update(s => (s.activeId === null ? s : selectCrop(commitCrops(s, s.activeId, [...activeCrops(s), crop]), crop.id)));
+}
+
+function trimCrops(ids: ReadonlySet<string>): void {
+  const source = activeSource(state);
+  if (!source) return;
+  const margin = Math.max(0, Number(ui.trimMargin.value) || 0);
+  let trimmed = 0;
+  let empty = 0;
+  try {
+    const next = activeCrops(state).map(crop => {
+      if (!ids.has(crop.id)) return crop;
+      const rect = trimmedRect(source, crop, margin, TRIM_TOLERANCE);
+      if (!rect) {
+        empty++;
+        return crop;
+      }
+      trimmed++;
+      return { ...crop, rect };
+    });
+    if (trimmed > 0) update(s => commitCrops(s, source.id, next));
+  } catch (error) {
+    toast(`Trim failed: ${errorMessage(error)}`, 'error');
+    return;
+  }
+  const skipped = empty > 0 ? ` ${empty} crop${empty === 1 ? ' is' : 's are'} only background and ${empty === 1 ? 'was' : 'were'} left as is.` : '';
+  toast(`Trimmed ${trimmed} crop${trimmed === 1 ? '' : 's'}.${skipped}`, 'info');
 }
 
 // ---------- Sources and detection ----------
@@ -235,8 +302,11 @@ async function addFiles(files: readonly File[]): Promise<void> {
         size: bitmapSize(bitmap),
         bitmap,
         thumbUrl: URL.createObjectURL(file),
+        blob: file,
         detection: { kind: 'pending' },
       };
+      // Store the image before the snapshot that references it can be written.
+      await saveImage(source.id, file).catch(reportStorageError);
       update(s => addSource(s, source));
       void detectNew(source);
     } catch (error) {
@@ -256,6 +326,7 @@ function removeSourceById(id: string): void {
   if (!source) return;
   update(s => removeSource(s, id));
   releaseSource(source);
+  deleteImage(id).catch(reportStorageError);
 }
 
 function resetWorkspace(): void {
@@ -265,6 +336,38 @@ function resetWorkspace(): void {
   update(s => initialState(s.settings));
   sources.forEach(releaseSource);
   ui.fileInput.value = '';
+  clearWorkspace().catch(reportStorageError);
+}
+
+/** Bring back the workspace saved in this browser, unless the user already started a new one. */
+async function restoreWorkspace(): Promise<void> {
+  const raw = await loadWorkspace();
+  if (raw === undefined) return;
+  const snapshot = parseSnapshot(raw);
+  const images = new Map<string, RestoredImage>();
+  const problems: string[] = [];
+  for (const stored of snapshot.sources) {
+    try {
+      const blob = await loadImage(stored.id);
+      if (!blob) throw new Error('image is missing from browser storage');
+      images.set(stored.id, { bitmap: await decodeImage(blob, stored.name), blob, thumbUrl: URL.createObjectURL(blob) });
+    } catch (error) {
+      problems.push(`${stored.name} (${errorMessage(error)})`);
+    }
+  }
+  const restored = restoreState(snapshot, images);
+  if (state.sources.length > 0) {
+    restored.sources.forEach(s => {
+      URL.revokeObjectURL(s.thumbUrl);
+      s.bitmap.close();
+    });
+    toast('New images were added before the previous workspace loaded, so it was not restored.', 'info');
+    return;
+  }
+  update(() => restored);
+  restored.sources.filter(s => s.detection.kind === 'pending').forEach(s => void detectNew(s));
+  if (problems.length > 0) toast(`Could not restore ${problems.length} image${problems.length === 1 ? '' : 's'}: ${problems.join('; ')}`, 'error');
+  else if (restored.sources.length > 0) toast(`Restored ${restored.sources.length} source${restored.sources.length === 1 ? '' : 's'} from your last session.`, 'info');
 }
 
 // ---------- Input wiring ----------
@@ -333,6 +436,10 @@ ui.applyAllButton.addEventListener('click', () => {
   update(s => applyLayoutToAll(s, newId));
   toast(`Copied this layout to ${others} other source${others === 1 ? '' : 's'}. Undo works per source.`, 'info');
 });
+ui.trimSelectedButton.addEventListener('click', () => {
+  if (state.selectedId) trimCrops(new Set([state.selectedId]));
+});
+ui.trimAllButton.addEventListener('click', () => trimCrops(new Set(activeCrops(state).map(c => c.id))));
 ui.sensitivity.addEventListener('input', () => {
   update(s => setSettings(s, { ...s.settings, sensitivity: Number(ui.sensitivity.value) / 100 }));
 });
@@ -377,7 +484,13 @@ window.addEventListener('keydown', event => {
 });
 
 window.addEventListener('beforeunload', event => {
-  if (state.sources.length > 0) event.preventDefault();
+  const saved = autosave.status().kind;
+  if (state.sources.length > 0 && (saved === 'pending' || saved === 'failed')) event.preventDefault();
 });
 
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch((error: unknown) => toast(`Offline mode is unavailable: ${errorMessage(error)}`, 'error'));
+}
+
 render(null);
+restoreWorkspace().catch((error: unknown) => toast(`Could not restore your previous workspace: ${errorMessage(error)}`, 'error'));
