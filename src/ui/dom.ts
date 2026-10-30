@@ -14,14 +14,6 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: str
   return node;
 }
 
-export function iconButton(label: string, glyph: string, className: string): HTMLButtonElement {
-  const button = el('button', className, [glyph]);
-  button.type = 'button';
-  button.title = label;
-  button.setAttribute('aria-label', label);
-  return button;
-}
-
 export type ToastKind = 'info' | 'error';
 
 export function toast(message: string, kind: ToastKind): void {
@@ -40,4 +32,24 @@ export function errorMessage(error: unknown): string {
 export function isTyping(event: KeyboardEvent): boolean {
   const target = event.target;
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** An icon from the sprite in index.html. */
+export function icon(name: string): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  const use = document.createElementNS(SVG_NS, 'use');
+  use.setAttribute('href', `#i-${name}`);
+  svg.append(use);
+  svg.setAttribute('aria-hidden', 'true');
+  return svg;
+}
+
+export function iconOnlyButton(label: string, iconName: string, className: string): HTMLButtonElement {
+  const button = el('button', className ? `icon-btn ${className}` : 'icon-btn', [icon(iconName)]);
+  button.type = 'button';
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  return button;
 }

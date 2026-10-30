@@ -28,3 +28,8 @@ export interface DetectionResult {
   readonly confidence: number;
   readonly method: DetectionMethod;
 }
+
+export type ExportFormat = 'png' | 'jpeg' | 'webp';
+
+/** 'original' keeps each upload's own format when the browser can encode it. */
+export type FormatChoice = ExportFormat | 'original';

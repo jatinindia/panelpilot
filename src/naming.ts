@@ -1,33 +1,64 @@
+import type { ExportFormat, FormatChoice } from './types';
+
 export interface TemplateTokens {
-  readonly source: string;
+  /** Original upload file name, e.g. "Summer Sale.JPG". */
+  readonly name: string;
   /** 1-based panel index. */
   readonly n: number;
   readonly total: number;
   readonly label: string;
 }
 
-/** Lowercase, filesystem-safe slug. Keeps unicode letters, digits, `_` and `-`. */
-export function sanitize(text: string): string {
+export interface OutputFormat {
+  readonly format: ExportFormat;
+  readonly extension: string;
+}
+
+const STANDARD_EXTENSION: Readonly<Record<ExportFormat, string>> = { png: 'png', jpeg: 'jpg', webp: 'webp' };
+const EXTENSIONS: Readonly<Record<ExportFormat, readonly string[]>> = { png: ['png'], jpeg: ['jpg', 'jpeg'], webp: ['webp'] };
+
+export function baseName(fileName: string): string {
+  return fileName.replace(/\.[^./]+$/, '');
+}
+
+function extensionOf(fileName: string): string {
+  return /\.([^./]+)$/.exec(fileName)?.[1] ?? '';
+}
+
+/** Keeps the name as typed (case, spaces, unicode); removes only what filesystems reject. */
+export function safeName(text: string): string {
   return text
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}_-]+/gu, '-')
-    .replace(/-{2,}/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/, '');
 }
 
-export function safeFileName(name: string): string {
-  return sanitize(name.replace(/\.[^./]+$/, '')) || 'image';
-}
-
-/** Render a filename template with {source}, {n} and {label}. Unknown tokens render empty. */
+/** Render a file-name template with {name}, {n} and {label}. Unknown tokens render empty. */
 export function applyTemplate(template: string, tokens: TemplateTokens): string {
-  const index = String(tokens.n).padStart(Math.max(2, String(tokens.total).length), '0');
+  const index = String(tokens.n).padStart(String(tokens.total).length, '0');
   const rendered = template
-    .replace(/\{source\}/g, safeFileName(tokens.source))
+    .replace(/\{name\}/g, baseName(tokens.name))
     .replace(/\{n\}/g, index)
-    .replace(/\{label\}/g, sanitize(tokens.label))
+    .replace(/\{label\}/g, tokens.label)
     .replace(/\{[^}]*\}/g, '');
-  return sanitize(rendered) || index;
+  return safeName(rendered) || index;
+}
+
+/** Which format to encode an upload's crops in, and the extension to write. */
+export function outputFormat(fileName: string, mimeType: string, choice: FormatChoice): OutputFormat {
+  const original = encodableFormat(mimeType);
+  const format = choice === 'original' ? (original ?? 'png') : choice;
+  const ext = extensionOf(fileName);
+  const keepsSpelling = format === original && EXTENSIONS[format].includes(ext.toLowerCase());
+  return { format, extension: keepsSpelling ? ext : STANDARD_EXTENSION[format] };
+}
+
+function encodableFormat(mimeType: string): ExportFormat | null {
+  if (mimeType === 'image/jpeg') return 'jpeg';
+  if (mimeType === 'image/png') return 'png';
+  if (mimeType === 'image/webp') return 'webp';
+  return null;
 }
 
 /** Suffix duplicates with -2, -3, ... (case-insensitive, since most filesystems are). */

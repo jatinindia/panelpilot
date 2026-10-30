@@ -3,7 +3,7 @@ import { toPixelRect } from '../geometry';
 import type { Crop, DetectionStatus, Source } from '../model';
 import type { AppState } from '../state';
 import { cropsOf } from '../state';
-import { el, iconButton } from './dom';
+import { el, iconOnlyButton } from './dom';
 
 export interface SourceListCallbacks {
   readonly activate: (sourceId: string) => void;
@@ -12,7 +12,6 @@ export interface SourceListCallbacks {
 
 export interface CropListCallbacks {
   readonly select: (cropId: string) => void;
-  readonly rename: (cropId: string, label: string) => void;
   readonly move: (cropId: string, delta: number) => void;
   readonly duplicate: (cropId: string) => void;
   readonly remove: (cropId: string) => void;
@@ -26,13 +25,13 @@ export interface StatusBadge {
 export function statusBadge(status: DetectionStatus): StatusBadge {
   switch (status.kind) {
     case 'pending':
-      return { text: 'detecting', tone: 'busy' };
+      return { text: 'Detecting', tone: 'busy' };
     case 'failed':
-      return { text: 'error', tone: 'bad' };
+      return { text: 'Detection failed', tone: 'bad' };
     case 'done':
-      if (status.confidence >= 0.8) return { text: 'high', tone: 'good' };
-      if (status.confidence >= 0.5) return { text: 'medium', tone: 'check' };
-      return { text: 'review', tone: 'check' };
+      if (status.confidence >= 0.8) return { text: 'High confidence', tone: 'good' };
+      if (status.confidence >= 0.5) return { text: 'Check edges', tone: 'check' };
+      return { text: 'Needs review', tone: 'check' };
   }
 }
 
@@ -44,23 +43,22 @@ export function renderSourceList(list: HTMLUListElement, state: AppState, callba
       thumb.alt = '';
       const badge = statusBadge(source.detection);
       const count = cropsOf(state, source.id).length;
-      const meta = el('div', 'source-meta', [
-        el('span', `badge ${badge.tone}`, [badge.text]),
-        source.detection.kind === 'pending' ? '' : `${count} crop${count === 1 ? '' : 's'}`,
-      ]);
+      const dot = el('span', `dot ${badge.tone}`, []);
+      dot.title = badge.text;
+      const meta = el('div', 'source-meta', [dot, source.detection.kind === 'pending' ? 'Detecting…' : `${count} crop${count === 1 ? '' : 's'}`]);
       const info = el('div', '', [el('div', 'source-name', [source.name]), meta]);
-      info.title = `${source.name} - ${source.size.width}x${source.size.height}`;
-      const remove = iconButton(`Remove ${source.name}`, '×', 'remove-button');
+      const remove = iconOnlyButton(`Remove ${source.name}`, 'x', 'remove');
       remove.addEventListener('click', event => {
         event.stopPropagation();
         callbacks.remove(source.id);
       });
       const item = el('li', source.id === state.activeId ? 'source-item active' : 'source-item', [thumb, info, remove]);
+      item.title = `${source.name} · ${source.size.width} × ${source.size.height}`;
       item.tabIndex = 0;
       item.setAttribute('aria-current', String(source.id === state.activeId));
       item.addEventListener('click', () => callbacks.activate(source.id));
       item.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') {
+        if (event.target === item && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
           callbacks.activate(source.id);
         }
@@ -77,7 +75,7 @@ function thumbnail(source: Source, crop: Crop): HTMLCanvasElement {
   const cached = thumbnails.get(crop);
   if (cached) return cached;
   const canvas = el('canvas', 'crop-thumb', []);
-  canvas.width = 104;
+  canvas.width = 88;
   canvas.height = 88;
   const ctx = canvas.getContext('2d');
   if (ctx) {
@@ -96,24 +94,10 @@ export function renderCropList(list: HTMLUListElement, source: Source, crops: re
   list.replaceChildren(
     ...crops.map((crop, i) => {
       const px = toPixelRect(crop.rect, source.size.width, source.size.height);
-      const name = el('input', 'crop-name', []);
-      name.type = 'text';
-      name.value = crop.label ?? '';
-      name.placeholder = displayLabel({ ...crop, label: null }, i);
-      name.setAttribute('aria-label', `Name of crop ${i + 1}`);
-      name.addEventListener('change', () => callbacks.rename(crop.id, name.value));
-      name.addEventListener('keydown', event => {
-        if (event.key === 'Enter') name.blur();
-        if (event.key === 'Escape') {
-          name.value = crop.label ?? '';
-          name.blur();
-        }
-      });
-
-      const up = iconButton('Move up', '↑', '');
-      const down = iconButton('Move down', '↓', '');
-      const copy = iconButton('Duplicate', '⧉', '');
-      const remove = iconButton('Delete', '✕', 'danger');
+      const up = iconOnlyButton('Move up', 'up', '');
+      const down = iconOnlyButton('Move down', 'down', '');
+      const copy = iconOnlyButton('Duplicate', 'copy', '');
+      const remove = iconOnlyButton('Delete', 'trash', 'danger');
       up.disabled = i === 0;
       down.disabled = i === crops.length - 1;
       up.addEventListener('click', () => callbacks.move(crop.id, -1));
@@ -123,11 +107,11 @@ export function renderCropList(list: HTMLUListElement, source: Source, crops: re
 
       const row = el('li', crop.id === selectedId ? 'crop-row selected' : 'crop-row', [
         thumbnail(source, crop),
-        el('div', '', [name, el('div', 'crop-meta', [`${px.w} × ${px.h}`])]),
+        el('div', '', [el('div', 'crop-title', [`${i + 1}. ${displayLabel(crop, i)}`]), el('div', 'crop-meta', [`${px.w} × ${px.h} px`])]),
         el('div', 'crop-actions', [up, down, copy, remove]),
       ]);
       row.addEventListener('click', event => {
-        if (!(event.target instanceof HTMLButtonElement)) callbacks.select(crop.id);
+        if (!(event.target instanceof Element && event.target.closest('button'))) callbacks.select(crop.id);
       });
       return row;
     }),
