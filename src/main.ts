@@ -39,7 +39,6 @@ const ui = {
   fileInput: byId('fileInput', HTMLInputElement),
   dropZone: byId('dropZone', HTMLLabelElement),
   dropOverlay: byId('dropOverlay', HTMLDivElement),
-  sampleButton: byId('sampleButton', HTMLButtonElement),
   emptySample: byId('emptySample', HTMLButtonElement),
   emptyUpload: byId('emptyUpload', HTMLButtonElement),
   resetButton: byId('resetButton', HTMLButtonElement),
@@ -538,7 +537,6 @@ ui.dropZone.addEventListener('keydown', event => {
     ui.fileInput.click();
   }
 });
-ui.sampleButton.addEventListener('click', loadSample);
 ui.emptySample.addEventListener('click', loadSample);
 ui.resetButton.addEventListener('click', resetWorkspace);
 

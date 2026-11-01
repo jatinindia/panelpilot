@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f4f4f5" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#111113" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#191919" media="(prefers-color-scheme: dark)" />
     <title>PanelPilot</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
@@ -42,53 +42,40 @@
 
     <div class="app">
       <header class="topbar">
-        <div class="brand">
-          <img src="./icon.svg" alt="" width="26" height="26" />
-          <span>PanelPilot</span>
-        </div>
-        <div class="doc-title">
+        <div class="crumbs">
+          <span class="brand"><img src="./icon.svg" alt="" width="22" height="22" /><span>PanelPilot</span></span>
+          <span class="crumb-sep" aria-hidden="true">/</span>
           <span class="doc-name" id="title">No image</span>
           <span class="doc-meta" id="docMeta"></span>
           <span class="chip" id="confidencePill" hidden></span>
         </div>
         <div class="topbar-actions">
           <span class="save-status" id="saveStatus" hidden></span>
-          <div class="btn-group">
-            <button class="icon-btn" id="undoButton" type="button" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" disabled><svg><use href="#i-undo" /></svg></button>
-            <button class="icon-btn" id="redoButton" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" disabled><svg><use href="#i-redo" /></svg></button>
-          </div>
+          <button class="icon-btn" id="undoButton" type="button" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" disabled><svg><use href="#i-undo" /></svg></button>
+          <button class="icon-btn" id="redoButton" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" disabled><svg><use href="#i-redo" /></svg></button>
           <button class="icon-btn" id="themeButton" type="button" title="Toggle light/dark" aria-label="Toggle light or dark theme"><svg><use href="#i-moon" /></svg></button>
           <button class="btn btn-primary" id="exportButton" type="button" disabled><svg><use href="#i-download" /></svg><span>Export</span></button>
         </div>
       </header>
-
-      <aside class="library" aria-label="Images">
-        <div class="panel-head">
-          <span class="panel-title">Images <span class="count" id="sourceCount">0</span></span>
-          <button class="btn btn-ghost btn-sm" id="resetButton" type="button" disabled>Clear all</button>
-        </div>
-        <label class="add-tile" id="dropZone" tabindex="0">
-          <input id="fileInput" type="file" accept="image/*" multiple hidden />
-          <svg><use href="#i-upload" /></svg>
-          <span><strong>Add images</strong><small>Drop, paste or browse</small></span>
-        </label>
-        <ul class="source-list" id="sourceList"></ul>
-        <button class="btn btn-ghost btn-sm sample-link" id="sampleButton" type="button"><svg><use href="#i-sparkles" /></svg>Load a sample collage</button>
-      </aside>
 
       <main class="stage" aria-label="Editor">
         <div class="stage-canvas" id="canvasWrap">
           <canvas id="editorCanvas" aria-label="Image with crop regions"></canvas>
 
           <div class="empty" id="emptyState">
-            <div class="empty-card">
-              <div class="empty-icon"><svg><use href="#i-image" /></svg></div>
-              <h1>Split collages into clean product images</h1>
-              <p>Drop images anywhere. Panels are detected automatically, and you stay in control of every pixel. Nothing leaves your device.</p>
+            <div class="empty-inner">
+              <p class="eyebrow">Collage splitter</p>
+              <h1>Drop a collage here.<br />Get every product as its own image.</h1>
+              <p class="lede">Panels are found automatically, then you fine-tune each crop to the pixel. Everything runs in your browser; nothing is uploaded.</p>
               <div class="empty-actions">
-                <button class="btn btn-primary" id="emptyUpload" type="button"><svg><use href="#i-upload" /></svg>Choose images</button>
-                <button class="btn btn-secondary" id="emptySample" type="button"><svg><use href="#i-sparkles" /></svg>Try a sample</button>
+                <button class="btn btn-primary btn-lg" id="emptyUpload" type="button"><svg><use href="#i-upload" /></svg>Choose images</button>
+                <button class="btn btn-secondary btn-lg" id="emptySample" type="button">Try a sample</button>
               </div>
+              <ol class="steps">
+                <li><span>1</span>Drop or paste one or more collages</li>
+                <li><span>2</span>Check and adjust the detected crops</li>
+                <li><span>3</span>Export with the original file names</li>
+              </ol>
             </div>
           </div>
 
@@ -110,13 +97,28 @@
           </div>
 
           <div class="floating readout" id="readout" hidden></div>
-          <div class="floating busy" id="busyOverlay" hidden><span class="spinner"></span>Detecting panels</div>
+          <div class="floating busy-pill" id="busyOverlay" hidden><span class="spinner"></span>Detecting panels</div>
         </div>
+
+        <section class="filmstrip" aria-label="Images">
+          <div class="filmstrip-head">
+            <span class="section-title">Images <span class="count" id="sourceCount">0</span></span>
+            <button class="btn btn-ghost btn-sm" id="resetButton" type="button" disabled>Clear all</button>
+          </div>
+          <div class="filmstrip-row">
+            <label class="add-tile" id="dropZone" tabindex="0" title="Add images (drop, paste or browse)">
+              <input id="fileInput" type="file" accept="image/*" multiple hidden />
+              <svg><use href="#i-plus" /></svg>
+              <span>Add</span>
+            </label>
+            <ul class="source-list" id="sourceList"></ul>
+          </div>
+        </section>
       </main>
 
       <aside class="inspector" aria-label="Inspector">
         <section class="selection" id="selectionPanel">
-          <div class="panel-head"><span class="panel-title">Selection</span><span class="muted small" id="selectionIndex"></span></div>
+          <div class="panel-head"><span class="section-title">Selection</span><span class="muted small" id="selectionIndex"></span></div>
           <p class="hint" id="selectionEmpty">Select a crop to edit it, or switch to the draw tool (R) and drag on the image.</p>
           <div class="selection-body" id="selectionBody" hidden>
             <input class="name-input" id="cropName" type="text" placeholder="Crop name" aria-label="Crop name" />

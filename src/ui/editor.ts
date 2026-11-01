@@ -136,9 +136,9 @@ export function createEditor(canvas: HTMLCanvasElement, callbacks: EditorCallbac
     const toScreen = (r: Rect): Rect => ({ x: view.offsetX + r.x * iw, y: view.offsetY + r.y * ih, w: r.w * iw, h: r.h * ih });
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-    ctx.shadowBlur = 24;
-    ctx.shadowOffsetY = 8;
+    ctx.shadowColor = 'rgba(15, 15, 15, 0.16)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetY = 6;
     ctx.fillStyle = '#fff';
     ctx.fillRect(view.offsetX, view.offsetY, iw, ih);
     ctx.shadowColor = 'transparent';
@@ -152,7 +152,7 @@ export function createEditor(canvas: HTMLCanvasElement, callbacks: EditorCallbac
     maskCtx.setTransform(1, 0, 0, 1, 0, 0);
     maskCtx.clearRect(0, 0, mask.width, mask.height);
     maskCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    maskCtx.fillStyle = 'rgba(10, 10, 16, 0.55)';
+    maskCtx.fillStyle = 'rgba(15, 15, 15, 0.5)';
     maskCtx.fillRect(view.offsetX, view.offsetY, iw, ih);
     crops.forEach(c => {
       const s = toScreen(c.rect);
@@ -193,7 +193,7 @@ export function createEditor(canvas: HTMLCanvasElement, callbacks: EditorCallbac
     const text = ctx.measureText(full).width + 16 <= s.w - 12 ? full : String(index + 1);
     const width = ctx.measureText(text).width + 14;
     if (width > s.w - 4 || 22 > s.h - 4) return;
-    ctx.fillStyle = selected ? accent : 'rgba(20, 20, 26, 0.78)';
+    ctx.fillStyle = selected ? accent : 'rgba(25, 25, 24, 0.78)';
     ctx.beginPath();
     ctx.roundRect(s.x + 6, s.y + 6, width, 20, 10);
     ctx.fill();
@@ -266,7 +266,7 @@ export function createEditor(canvas: HTMLCanvasElement, callbacks: EditorCallbac
     const label = `${Math.round(fx)}, ${Math.round(fy)}  ·  ${px.w} × ${px.h}`;
     ctx.font = '600 11px ui-monospace, Menlo, monospace';
     const width = ctx.measureText(label).width + 16;
-    ctx.fillStyle = 'rgba(20, 20, 26, 0.85)';
+    ctx.fillStyle = 'rgba(25, 25, 24, 0.85)';
     ctx.beginPath();
     ctx.roundRect(left + (LOUPE_PX - width) / 2, top + LOUPE_PX + 8, width, 22, 11);
     ctx.fill();
